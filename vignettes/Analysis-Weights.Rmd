@@ -1,0 +1,370 @@
+---
+title: "Analysis Guide: Calculating Weights"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Calculating Weights}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+```{r, create toy data, include = FALSE, warning=FALSE}
+library(dplyr)
+
+# Toy data function - developed by Kristin Porter
+create_toydata <- function(num_observations,num_sites,
+                           site_proportions,treatment_proportions) {
+    ID <- 1:num_observations 
+    num_each_site <- round(num_observations * site_proportions)
+    allSites <- 1:num_sites
+    Site<-RACode<-NULL
+    for (s in 1:num_sites) {
+      Site <- c(Site,rep(allSites[s], num_each_site[s]))
+      numT <- round(num_each_site[s]*treatment_proportions[s])
+      numC <- num_each_site[s]-numT
+      RACode <- c(RACode,rep("P",numT),rep("C",numC))
+    }
+    toydata <- data.frame(ID,Site,RACode)
+}
+
+# Basic Multi-site Data
+num_observations <-1500
+num_sites <- 2
+site_proportions <- c(1/3,2/3)# proportions of total sample size at each site
+treatment_proportions <- c(0.5,0.5) # proportions assigned to treatment in each site
+multi_site_basic <- create_toydata(num_observations, num_sites, site_proportions, treatment_proportions)
+
+# Multi-site with Differing RA Ratios Data
+num_observations <-3000
+num_sites <- 2
+site_proportions <- c(2/3,1/3)# proportions of total sample size at each site
+treatment_proportions <- c(0.5,0.8) # proportions assigned to treatment in each site
+multi_site_Ex2 <- 
+  create_toydata(num_observations, num_sites, site_proportions, treatment_proportions) %>% 
+  rename(Group = Site)
+
+```
+
+
+# Purpose
+This purpose of this vignette is to provide tidyverse code for staff to create weights. Scenarios are borrowed from the QMG paper on this subject. Huge thanks to Kristin Porter for the `create_toydata()` function, sample data sets, and base R code samples (available in the QMG paper). For more detailed background on weights refer to the QMG paper on [Weighting](https://mdrc365.sharepoint.com/sites/QuantMethods/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FQuantMethods%2FShared%20Documents%2FGuidance%2FQMG%20Weighting%20Memo%20%28November%202013%29%2Epdf&parent=%2Fsites%2FQuantMethods%2FShared%20Documents%2FGuidance). For the code to create the sample data sets, please refer to the appendix of this vignette. 
+
+# Background
+In many cases, the sample build-up is a consequence of practical decisions made when recruiting study participants rather than what would be ideal for statistical analysis or policy-relevant interpretation. As a result, it is important to be clear on the implications the sample may have on interpretation of statistical results. Luckily, the analysis can also be adjusted mathematically to better estimate results under different/idealized conditions. The process of adjusting sample proportions to better reflect the desired population is called weighting. 
+
+## How to Weight
+Broadly, the process of calculating weights can be broken down into three steps.  
+
+1. Determine the existing proportion of the sample in the data.   
+2. Determine the desired proportions for the groups within the sample. 
+  + NOTE: This step requires careful consideration. Refer to the QMG memo and reach out to the project impact analyst for more information on how to make this decision.  
+  + This step might also require several steps to calculate the desired proportion depending on the number of groups being weighted.  
+3. Determine the weight for individuals in a group. The weight is calculated as the desired proportion divided the observed proportion.
+
+### Sanity Checking the Weights
+One sanity check for weights is that the sum of weights should equal the sample size. This will ensure that the standard error produce are correct for the given sample. 
+
+# Coding Examples
+## Example 1: Basic Multi-site Study
+Imagine a study with two sites. In the first site, 500 participants were assigned in equal numbers to the program and control groups. In the second site, 1,000 participants were assigned in equal numbers to the two groups. This scenario is represented with `multi_site_basic`. 
+
+```{r}
+# create data frame with observed proportions in basic multi-site study data
+observed_proportions <- 
+  multi_site_basic %>% 
+  count(Site) %>% 
+  mutate(obs_proportion = round(n/nrow(multi_site_basic), 4))
+
+observed_proportions
+```
+
+###  Basic Multi-site Study: Scenario A - Study Results Should Represent State
+Suppose the sites in the study are two counties in a state, one rural and one urban, and the state would like the results to be representative of the entire state. Since 80 percent of the target population in the state lives in urban counties, the state suggests that the pooled results should come 80 percent from the urban county (Site 2) and 20 percent from the rural county (Site 1).  
+
+Desired pooled proportion is 80% from site 2 and 20% from site 1. Since there are no other weighting concerns, the proportion would be: 
+  
+* Site 1 - 20%
+* Site 2 - 80%
+
+This can be added pretty simply to the existing proportions data above given that it's by site. Additionally, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. 
+
+```{r}
+# Add on desired proportions
+desired_proportions_A <- 
+  observed_proportions %>% 
+  mutate(des_proportion = ifelse(Site == 1, .20, .8),
+         weight          = round(des_proportion/obs_proportion, 3))
+
+desired_proportions_A
+```
+
+Merging these weights onto the original data is also fairly straightforward using joins with all group levels in the `by=` argument. Of course, staff may want to drop unnecessary columns before joining. 
+
+```{r}
+# Join on weight by site
+multi_site_basic_A <- 
+  multi_site_basic %>% 
+  left_join(desired_proportions_A,
+            by = "Site")
+
+# Check random sample of 4 records
+slice_sample(multi_site_basic_A, n = 2, by = "Site") %>% 
+  select(Site, weight) %>% 
+  arrange(Site)
+```
+
+#### Sanity Check of Weights
+As noted above, the sum of weights should sum to the sample size. The sample is 1500 observations. 
+
+```{r}
+multi_site_basic_A %>% 
+  summarize(n_total = n(), n_weights = sum(weight))
+```
+
+
+### Basic Multi-site Study: Scenario B - Sites Contribute Equally
+Suppose the two sites are in very different places and ran very different versions of the program. One site had a sample twice the size of the other. The study aims to report the effect of the program on average, one site should not dominate the result, so each site should provide equal weight to the pooled result. Many MDRC multi-studies fall into this category. Examples include Jobs Plus and GAIN.  
+
+Desired pooled proportion is 50% from site 2 and 50% from site 1. Since the sites are 50P/50C, the desired proportion would be: 
+  
+* Site 1 - 50%
+* Site 2 - 50%
+
+This can be added pretty simply to the existing proportions data above. And, once again, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. 
+```{r}
+desired_proportions_B <- 
+  observed_proportions %>% 
+  mutate(des_proportion = .5,
+         weight         = round(des_proportion/obs_proportion, 3))
+
+desired_proportions_B
+```
+
+Similarly to above, merging weights onto the original data is done using joins with all group levels in the `by=` argument. 
+
+```{r}
+# Join on weight by site
+multi_site_basic_B <- 
+  multi_site_basic %>% 
+  left_join(desired_proportions_B,
+            by = "Site")
+
+# Check random sample of 4 records
+slice_sample(multi_site_basic_B, n = 2, by = "Site") %>% 
+  select(Site, weight) %>% 
+  arrange(Site)
+```
+
+#### Sanity Check of Weights
+As noted above, the sum of weights should sum to the sample size. The sample is 1500 observations. 
+
+```{r}
+multi_site_basic_B %>% 
+  summarize(n_total = n(), n_weights = sum(weight))
+```
+
+
+### Basic Multi-site Study: Scenario C - Each Individual Contributes Equally
+Although the sample came from several sites in a larger jurisdiction (counties within a state, schools within a school district, and so on), the sample was chosen to be representative of the larger jurisdiction. Therefore, each participant in the sample should be treated the same way. 
+
+NOTE: Doing this results in sites with larger samples contributing more than smaller sites. Additionally, because the RA ratios are equal within site and overall, the weight is 1. This is the equivalent of not providing a weight. 
+
+Desired pooled proportion is as sampled. Since the smaller site is 1/3rd of the sample and the larger site is 2/3rds of the sample, the desired proportion would be: 
+  
+* Site 1 - 1/3rd
+* Site 2 - 2/3rd
+
+This can be added pretty simply to the existing proportions data above. And, once again, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. In this case, because the desired proportion is equivalent to the observed proportion and thus the weights are 1. As a result, the weights do not need to be added to any models as this is the default behavior of regression functions. 
+```{r}
+desired_proportions_C <- 
+  observed_proportions %>% 
+  mutate(des_proportion = ifelse(Site == 1, 1/3, 2/3),
+         weight         = round(des_proportion/obs_proportion, 3))
+
+desired_proportions_C
+```
+
+As noted, this is not necessary to merge onto the data and is the default behavior of regression functions. 
+
+## Example 2: Multi-site Study with Differing Random Assignment Ratios
+The following example broadens the weighting complexity with differing random assignment ratios. This increases the number of groups which have to be included when calculating the observed and desired proportions. 
+
+Suppose the study is a two-group study. In the first group, 1000 participants were assigned in equal numbers to the program and control groups. In the second group, 800 participants were assigned to the program group and 200 participants were assigned to the control group. This scenario is represented with `multi_site_Ex2`. 
+
+NOTE: The groups in this example can be sites or cohorts or any other group that defines the difference in RA ratio. 
+
+```{r}
+# create data frame with observed proportions in multi_site_Ex2 study data
+observed_proportions <- 
+  multi_site_Ex2 %>% 
+  count(Group, RACode) %>% 
+  mutate(obs_proportion = round(n/nrow(multi_site_Ex2), 4))
+
+observed_proportions
+```
+
+### Multi-site Study with Differing Random Assignment Ratios: Scenario A - 80% Group 1, 20% Group 2
+In this scenario, the desired pooled proportion is 80% (4/5ths) from Group 1 and 20% (1/5th) from Group 2. However, when considering the RA ratios, this becomes more complicated. The observed RA ratio is 1800 program participants to 1200 control participants, or 60% P (3/5ths) vs. 40% C (2/5ths). As a result, the desired proportions should also reflect this ratio. Thus, to get the full desired ratios, the group ratios and random assignment ratios are multiplied together.
+
+* Group 1 C - (4/5)*(2/5) ->  8/25 
+* Group 1 P - (4/5)*(3/5) -> 12/25 
+* Group 2 C - (1/5)*(2/5) ->  2/25
+* Group 2 P - (1/5)*(3/5) ->  3/25 
+
+This can be added to the existing proportions data above most easily using `case_when()`. Additionally, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. 
+
+```{r}
+# Add on desired proportions
+desired_proportions_A <- 
+  observed_proportions %>% 
+  mutate(des_proportion = case_when(Group == 1 & RACode == "C" ~  8/25,
+                                    Group == 1 & RACode == "P" ~ 12/25,
+                                    Group == 2 & RACode == "C" ~  2/25,
+                                    Group == 2 & RACode == "P" ~  3/25),
+         weight          = round(des_proportion/obs_proportion, 2))
+
+desired_proportions_A
+```
+
+Merging these weights onto the original data is also fairly straightforward using joins with all group levels in the `by=` argument. Of course, staff may want to drop unnecessary columns before joining. 
+
+```{r}
+# Join on weight by site
+multi_site_Ex2_A <- 
+  multi_site_Ex2 %>% 
+  left_join(desired_proportions_A,
+            by = c("Group", "RACode"))
+
+# Check random sample of 4 records
+slice_sample(multi_site_Ex2_A, n = 2, by = c("Group", "RACode")) %>% 
+  select(Group, RACode, weight) %>% 
+  arrange(Group, RACode)
+```
+
+#### Sanity Check of Weights
+As noted above, the sum of weights should sum to the sample size. The sample is 3000 observations. 
+
+```{r}
+multi_site_Ex2_A %>% 
+  summarize(n_total = n(), n_weights = sum(weight))
+```
+
+### Multi-site Study with Differing Random Assignment Ratios: Scenario B - Equal Contribution by Group
+In this scenario, the desired pooled proportion is 50% (1/2) from Group 1 and 50% (1/2) from Group 2. Again, considering the RA Ratio, the observed RA ratio is 1800 program participants to 1200 control participants, or 60% P (3/5) vs. 40% C (2/5). As a result, the desired proportions should also reflect this ratio. Thus, to get the full desired ratios, the group ratios and random assignment ratios are multiplied together.
+
+* Group 1 C - (1/2)*(2/5) ->  2/10 
+* Group 1 P - (1/2)*(3/5) ->  3/10 
+* Group 2 C - (1/2)*(2/5) ->  2/10
+* Group 2 P - (1/2)*(3/5) ->  3/10 
+
+This can be added to the existing proportions data using `case_when()` as in scenario A or with `ifelse()` since the desired proportions are the same by RA status. NOTE: The calculated weight of Group 2 RA Code C is 2.999 according to the rounding rules used in R. However, this results in slightly off weights, so an additional step is taken to round to 3. 
+
+Additionally, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. 
+
+```{r}
+# Add on desired proportions
+desired_proportions_B <- 
+  observed_proportions %>% 
+  mutate(des_proportion  = ifelse(RACode == "C", 2/10, 3/10),
+         weight          = round(des_proportion/obs_proportion,3)) %>% 
+  mutate(weight          = ifelse(weight == 2.999, 3, weight))
+
+desired_proportions_B
+```
+
+Merging these weights onto the original data is also fairly straightforward using joins with all group levels in the `by=` argument. Of course, staff may want to drop unnecessary columns before joining. 
+
+```{r}
+# Join on weight by site
+multi_site_Ex2_B <- 
+  multi_site_Ex2 %>% 
+  left_join(desired_proportions_B,
+            by = c("Group", "RACode"))
+
+# Check random sample of 4 records
+slice_sample(multi_site_Ex2_B, n = 2, by = c("Group", "RACode")) %>% 
+  select(Group, RACode, weight) %>% 
+  arrange(Group, RACode)
+```
+
+#### Sanity Check of Weights
+As noted above, the sum of weights should sum to the sample size. The sample is 3000 observations. 
+
+```{r}
+multi_site_Ex2_B %>% 
+  summarize(n_total = n(), n_weights = sum(weight))
+```
+
+### Multi-site Study with Differing Random Assignment Ratios: Scenario C - Equal Contribution for Each Individual
+In the final scenario, the desired proportion is that each individual is contributing an equal amount to the pooled results. However, because the RA ratio by group is not the same as the overall ratio, adjustments are still needed. 
+
+Being explicit, the desired pooled proportion is 66% (2/3) from Group 1 and 33% (1/3) from Group 2. Again, considering the RA Ratio, the observed RA ratio is 1800 program participants to 1200 control participants, or 60% P (3/5) vs. 40% C (2/5). As a result, the desired proportions should also reflect this ratio. Thus, to get the full desired ratios, the group ratios and random assignment ratios are multiplied together.
+
+* Group 1 C - (2/3)*(2/5) ->  4/15 
+* Group 1 P - (2/3)*(3/5) ->  6/15 
+* Group 2 C - (1/3)*(2/5) ->  2/15
+* Group 2 P - (1/3)*(3/5) ->  3/15 
+
+This can be added to the existing proportions data using `case_when()` as in scenario A. Additionally, calculating the weight once the desired proportion is established is straightforward; simply divide the desired proportion by the observed proportion. 
+
+```{r}
+# Add on desired proportions
+desired_proportions_C <- 
+  observed_proportions %>% 
+  mutate(des_proportion = case_when(Group == 1 & RACode == "C" ~  4/15,
+                                    Group == 1 & RACode == "P" ~  6/15,
+                                    Group == 2 & RACode == "C" ~  2/15,
+                                    Group == 2 & RACode == "P" ~  3/15),
+         weight          = round(des_proportion/obs_proportion, 2))
+
+desired_proportions_C
+```
+
+Merging these weights onto the original data is also fairly straightforward using joins with all group levels in the `by=` argument. Of course, staff may want to drop unnecessary columns before joining. 
+
+```{r}
+# Join on weight by site
+multi_site_Ex2_C <- 
+  multi_site_Ex2 %>% 
+  left_join(desired_proportions_C,
+            by = c("Group", "RACode"))
+
+# Check random sample of 4 records
+slice_sample(multi_site_Ex2_C, n = 2, by = c("Group", "RACode")) %>% 
+  select(Group, RACode, weight) %>% 
+  arrange(Group, RACode)
+```
+
+#### Sanity Check of Weights
+As noted above, the sum of weights should sum to the sample size. The sample is 3000 observations. 
+
+```{r}
+multi_site_Ex2_C %>% 
+  summarize(n_total = n(), n_weights = sum(weight))
+```
+
+# Adding weights in Models
+The `mdrcAnalysis` functions largely support using weights. Below is an example call using `hetreg_extract()`. Please see the documentation for details on other functions. 
+
+```{r, eval=FALSE}
+hetreg_extract(.dataset    = multi_site_Ex2_C
+              ,.treatment  = "RACode"
+              ,.dependents = "fake_outcome"
+              ,.covariates = "fake_covariate"
+              ,.wt_var     = "weight" 
+              )
+```
+
+
+# Appendix A - Toydata Function and Sample Data Creation
+
+```{r, create toy data, eval=FALSE}
+```
+

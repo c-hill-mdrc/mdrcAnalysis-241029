@@ -1,0 +1,39 @@
+---
+title: "Analysis Guide: Chi-Square"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Chi-Square}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Chi-Square ($\chi^2$)
+
+The chi-square test can be used to test independence of categories in a categorical variable. The most common example at MDRC is: is some categorical outcome variable independent of treatment status? For example, is grade independent of treatment status. 
+
+## `base::chisq()` with `broom` functions
+
+The simplest method for performing a chi-square test is using the `base::chisq.test()` function. A basic call of the `base::chisq.test()` function will produce the expected results, but there are more results that can be had using either the `str()` function and appropriate extraction notation (`[]` or `$`) or using the `broom` package and the appropriate functions to create the desired data frames. 
+
+```{r, warning=FALSE, message=FALSE}
+chisq.test(mtcars$gear, mtcars$carb)
+
+str(chisq.test(mtcars$gear, mtcars$carb))
+
+chisq.test(mtcars$gear, mtcars$carb)$p.value
+
+library(broom)
+tidy(chisq.test(mtcars$gear, mtcars$carb))
+glance(chisq.test(mtcars$gear, mtcars$carb))
+augment(chisq.test(mtcars$gear, mtcars$carb))
+```
+

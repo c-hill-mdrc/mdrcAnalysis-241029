@@ -1,0 +1,94 @@
+---
+title: "Analysis Guide: Correlations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Correlations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Correlations
+
+Correlations are a first step in evaluating two-way relationships. Correlations evaluate the linear relationship between two quantitative, ratio variables. 
+
+## Functions 
+
+There are many packages and functions that can be used to assess correlations. Functions will vary in their capacity. It may be necessary to explore other options for more in-depth statistics. It should be noted that for all of the listed functions, an entire data set can be provided as a single argument and the function will perform pairwise comparisons for all variables in the data set, though not all correlations are equally interpretable. For example, correlations with binary variables may not accurately reflect relationships.   
+
+### `base::cov()`
+
+The `base::cov()` function calculates the covariance of a pair of related variables. The covariance can tell you if two variables are positively or negatively related, but it cannot tell you how strong the relationship is. The `base::cov()` function can also accept a data frame and produce all pair-wise covariances. 
+
+```{r}
+cov(mtcars$mpg, mtcars$wt)
+```
+
+
+### `base::cor()`
+
+The `base::cor()` function produces the correlation coefficient (a.k.a. r, rho ($\rho$)), which normalizes the relationship described by the covariance and thus provides an interpretable value providing the strength of the relationship between the two variables. However, the correlation coefficient does not do any statistical test. 
+
+```{r}
+cor(mtcars$mpg, mtcars$wt)
+```
+#### `base::cor()` on a whole data frame
+The `base::cor()` function can also accept a data frame and produce all pair-wise correlations. The output is a two-way table with corresponding correlation in each cell. 
+
+```{r}
+cor(mtcars)
+```
+
+### `base::cor.test()`
+
+The `base::cor.test()` function provides the statistical test for the correlation. This provides a much more robust set of statistics for the correlation. The `base::cor.test()` function also has a `method=` argument for Pearson, Spearman (rho ($\rho$)), or Kendall (tau ($\tau$)) methods. 
+
+```{r}
+cor.test(mtcars$mpg, mtcars$wt)
+```
+
+### `base::cor.test()` with Formulas
+
+The `base::cor.test()` can also accept a type of formula notation, `~ x + y`, for correlations. Formula notation is common for many statistical methods and generally uses the tilde (`~`) as an operator. In this case, the tilde is the first character and the variables are separated by a plus (`+`) sign.  The below example reproduces the above example with the correlation formula notation.
+
+```{r}
+cor.test(~mpg + wt, data = mtcars)
+```
+
+
+### `psych::corr.test()` with `str()`
+
+The `psych::corr.test()` function can also be used for correlations and statistics. While the function does provide more statistics, it is a bit more work to get all the desired statistics reported. The below example uses the `str()` function to display the structure of the object and all of the available values. Like the `base::cor.test()` function, there is a parameter `method=` which can accept Pearson, Spearman, or Kendall for other methods. 
+
+```{r}
+library(psych)
+correlation <- corr.test(mtcars$mpg, mtcars$wt)
+correlation
+str(correlation)
+```
+
+### `psych::alpha()` 
+
+The `psych::alpha()` function can also be used to calculate the Chronbach's Alpha for correlations. Cronbach's Alpha is a measure of reliability between many correlations. As such, it is necessary to calculate many correlations and create a correlation table/matrix and then calculate the Cronbach's Alpha for the entire set of correlations. Below, the correlations for all the variables in the `mtcars` data frame are calculated. That is then passed to the `psych::alpha()` function and the Cronbach's Alpha is calculated. 
+
+```{r}
+library(psych)
+alpha(cor(mtcars))
+```
+
+### A function with `psych::corr.test()` and `psych::alpha()` 
+
+Kelly Saunders shared a function that performs the desired correlations and then calculates the Cronbach's Alpha for the entire set. Please review her [code in the user-code repository](https://github.com/MDRCNY/data-programming-user-code/blob/main/Analysis/Correlations/Pearson%20Correlations%20and%20Cronbach's%20Alpha%20function.R) for more information. 
+
+#### Other functions
+The [`corrplot::corrplot()`](https://cran.r-project.org/web/packages/corrplot/vignettes/corrplot-intro.html) function produces a correlation matrix with visualizations.  
+
+## {-}

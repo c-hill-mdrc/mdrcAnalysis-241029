@@ -1,0 +1,99 @@
+---
+title: "Analysis Guide: Linear Regression"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Linear Regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r echo=FALSE}
+library(mdrcAnalysis)
+```
+
+
+# Linear Regression
+As discussed in earlier chapters, linear regression, also referred to as multiple regression, is an extension of the t-test where multiple variables are used to explain differences in means. Whereas the t-test would attempt to explain an outcome with one predictor, linear regression uses many variables to attempt to reduce the unexplained error. At MDRC, as with Randomized Control Trials in general, the usual predictor of interest is treatment status. That is, does the outcome vary by treatment status, but we know that the outcome may also vary based on other variables. The additional variables are usually referred to as *covariates*. An education example of a model that might be used is: test score (outcome) as a function of treatment status (predictor of interest) and pre-test score (covariate) (`score ~ treatment + pre-test`). An employment example might be: earnings (outcome) as a function of treatment status (predictor of interest) and months of training (covariate) (`earnings ~ treatment + training`). 
+
+## `stats::lm()`
+The `base R stats` package function `lm()` is the simplest function for performing a simple linear regression. Like when performing ANOVA or logistic regression, the `lm()` function can use the [formula notation](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/formula), `outcome ~ predictor`, that is common in R. The function expects the formula first and then the data set. Other options can be included afterwards. 
+
+Following the same example as in the logistic regression section, below probability of admission (`admit`) is estimated using `gre`, `gpa`, and `rank` as predictors. As was noted in the logistic regression section, at MDRC, impacts of binary outcomes are often estimated using linear regression rather than logistic regression because of interpretability. For other use cases, logistic regression might still be preferred.  
+
+```{r}
+# Sample Regression - Using admissions data loaded in package
+lm(admit ~ gre + gpa + rank, data = admissions)
+```
+
+### Exploring the full `stats::lm()` results
+As with many analysis functions, the default output for `stats::lm()` is a very small portion of the fully generated results. To explore the full results, programmers can use a couple different methods.
+
+#### Using `broom` with `stats::lm()`
+The `broom` package is the `tidyverse` approach to extracting results from many analysis functions. The package creates neat data frames with all of the results. The three `broom` functions are `tidy()`, `glance()`, and `augment()`. The `tidy()` function provides the high-level results. The `glance()` function provides more model/fit statistics. The `augment()` function provides observation-level results, such as point estimates for each observation. 
+
+```{r}
+library(broom)
+
+tidy   (lm(admit ~ gre + gpa + rank, data = admissions))
+glance (lm(admit ~ gre + gpa + rank, data = admissions))
+augment(lm(admit ~ gre + gpa + rank, data = admissions))
+
+```
+
+#### Using `base R` to explore `lm()` results
+While the `tidyverse broom` package provides easy to use results, some may prefer to work with just `base R` functionality to acquire the results. The `str()` function provides metadata about the lists that are created by the analysis functions. From there, programmers could use list extraction methods such as the bracket notation (`[[]]`) or object name method (`$`) to extract individual pieces.
+
+```{r}
+# Assigning the results to an object
+results <- lm(admit ~ gre + gpa + rank, data = admissions)
+
+# Checking metadata of results object
+str(results)
+
+# Extracting the coefficient results using the object name
+results$coefficients
+
+# Extracting the coefficient results using bracket notation
+results[[1]]
+
+```
+
+### Adding Weights to the model
+In many situations, it may be necessary to weight the data to create a more representative estimate of the impact. In this case, staff simply need to use the `weights=` argument and provide a column which contains the desired weight for each observation. In most cases, this will simply be a column in the data set that has the appropriate weight. A forthcoming vignette will describe how to calculate weights. 
+
+In this example, a random group of the sample will have their estimates doubled. 
+
+```{r}
+# Create weights
+admissions$admin_weights <- ceiling(runif(400, 0, 2))
+
+lm(admit ~ gre + gpa + rank, data = admissions, weights = admin_weights)
+```
+
+
+### Covariate Significance
+It should be noted that most software will produce estimates and p-values for all variables on the right-hand-side of the model. This may explain why some situations might describe them all as predictors. Further, whether or not a predictor/covariate explains a significantly different value between levels can be interpreted from the results. In some cases, such as predictive modeling, researchers may remove variables that are not statistically significant. This creates a more parsimonious or efficient model. However, for many models at MDRC, the model was pre-specified using subject-matter expertise and previous research to suggest the variables should be included. As a result, even covariates that are not statistically significant may be kept in a model. This is one difference between causal and exploratory or predictive modeling. 
+
+### Heteroskedasticity
+One of the assumptions in calculating effects using regression is that the variance is constant. However, there are cases where this assumption is not met. As a result, there are many methods to adjust the standard errors to account for potential variation in error variance. Broadly, using these methods is recommended because the results if heteroskedasticity is not present will be the same, but when heteroskedasticity is present it is accounted for appropriately.
+
+The `hetreg_extract()` function implements a method that is considered to be the best adjustment in most cases, but there are options in the function to select different methods if needed. Please see the `hetreg_extract()` vignette and documentation for more information. 
+
+### Functions for linear regression 
+
+The RTU now has multiple functions that perform linear regression for a list of dependent variables. The functions are in the `mdrcAnalysis` package which is available to all staff signed into the MDRC R Servers (CORPMDRC and FedRAMP). The following functions all use `stats::lm()` as the underlying regression function. 
+  
+* `hetreg_extract()` - OLS Regression with heteroscedasticity-robust standard errors (recommended for individual RCTs)  
+* `clusterreg_extract()` - OLS Regression with cluster-robust standard errors (recommended for cluster RCTs)
+* `lm_extract()` - General OLS Regression  
+
+## {-}

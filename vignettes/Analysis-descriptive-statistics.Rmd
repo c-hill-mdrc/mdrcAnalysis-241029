@@ -1,0 +1,111 @@
+---
+title: "Analysis Guide: Descriptive Statistics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Descriptive Statistics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Descriptive Statistics 
+
+Descriptive statistics are generally the first set of statistics generated when exploring data and doing preliminary reporting. 
+
+## Data Summaries
+
+Some functions are for summarizing an entire data set. Functions will generally perform different operations based on variable types (character, numeric, factor) and variable characteristics (long string, continuous, categorical). Unsurprisingly, these functions report varying information, though many have additional options which might enhance the reports. 
+
+### `base::summary()`
+
+The `base::summary()` function is the simplest and most accessible summary function in R. It is available in all installations of R as part of the `base` package which is loaded automatically in each session.
+
+```{r}
+summary(mtcars)
+```
+
+
+
+### `describedata::proc_means()`
+
+The `describedata::proc_means()` function is an attempt to recreate the `PROC MEANS` procedure from SAS. Notably, the output from `describedata::proc_means()` is a tibble (data frame) which can be easily used for additional analysis. 
+
+```{r, eval=FALSE}
+library(describedata)
+proc_means(mtcars)
+```
+
+### `skimr::skim()`
+
+The `skimr::skim()` function includes some metadata about the entire data set along with common summary statistics and a histogram for numeric variables. 
+
+```{r, eval=FALSE}
+library(skimr)
+skim(mtcars)
+```
+
+## Single Variable Statistics {.tabset}
+
+Beyond the need to understand an entire data set as a whole, it is often helpful to produce checks for individual variables. 
+
+### Base R Functions
+
+```{r}
+# Basic Statistics
+mean(mtcars$hp)
+median(mtcars$hp)
+sum(mtcars$hp)
+sd(mtcars$hp)
+
+# Frequency table
+table(mtcars$hp)
+```
+
+### `tidyverse` Functions
+
+The `tidyverse` does not have specific functions for individual statistics, but all output is data frames which can be easier to work with. 
+
+```{r, message=FALSE, warning=FALSE}
+# Basic Statistics
+library(dplyr)
+mtcars %>% 
+  summarize(mean = mean(hp), median = median(hp), sum = sum(hp), sd = sd(hp))
+
+# Frequency table
+count(mtcars, hp)
+```
+
+#### `tidyverse` Functions at Scale
+
+There is often the need to create summary statistics for many variables. In those cases, the `tidyverse::across()` function is very handy. The below code calculates the mean for all the variables in the `iris` data frame except "Species". For more information on creating variables in bulk, review Section 9 of the [*Creating New Measures* document](https://mdrc365.sharepoint.com/sites/RTUSupport/Shared%20Documents/Tutorial-Creating-New-Measures.pdf?cid=e2aabf74-98e4-42a4-8bb4-0af4673d9310) of Introduction to R. 
+
+```{r}
+iris %>% 
+  summarize(across(.cols = -Species, .fns = mean))
+```
+
+
+
+## Appendix
+
+### `summarytools::dfSummary()`
+
+The `summarytools::dfSummary()` function provides a bit more information than `summary()` along with categorizing variables by type and creating a mini-visualization. Unfortunately, the `summarytools` package is currently unavailable in the MDRC environments. 
+
+```{r, warning = FALSE, eval=FALSE}
+library(summarytools)
+dfSummary(mtcars)
+
+```
+
+
+## {-}
+

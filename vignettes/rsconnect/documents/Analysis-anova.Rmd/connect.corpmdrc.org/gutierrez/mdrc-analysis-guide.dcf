@@ -1,0 +1,13 @@
+name: mdrc-analysis-guide
+title: MDRC-Analysis-Guide
+username: gutierrez
+account: gutierrez
+server: connect.corpmdrc.org
+hostUrl: https://connect.corpmdrc.org/__api__
+appId: 31
+bundleId:
+url: https://connect.corpmdrc.org/content/04298ee7-59a2-4aa3-8b1d-8aa45b10694f/
+version: 1
+asMultiple: TRUE
+asStatic: FALSE
+ignoredFiles: corr_extract.Rmd|crosstab_extract.Rmd|freq_extract.Rmd|hetreg_extract.Rmd|ht_extract.Rmd|lm_extract.Rmd|mean_extract.Rmd|mixed_extract.Rmd|surveyreg_extract_example.png|robustreg_extract.Rmd|Simulated_Data.Rmd|ttest_extract.Rmd

@@ -1,0 +1,94 @@
+---
+title: "ht_extract: Homogeneity of Effect"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ht_extract: Homogeneity of Effect}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r, warning = FALSE, message = FALSE}
+library(mdrcAnalysis)
+library(dplyr)
+```
+
+## Overview
+
+The HT statistic (`ht_extract`) is a test of homogeneity of impact. The HT statistic is used to check whether impacts for subgroups are statistically different.
+
+### Considerations for this Method
+It should be noted that this approach for subgroup impacts and analyzing across groups uses **split sample regressions**. This means that a separate sample is created for every level of the subgroup variable and then a regression is run for that subset. This is explicitly required when using these functions. First, the regression is run using `hetreg_extract()` or similar with the `subgroup=` parameter (running split sample regressions) and then the `ht_extract()` function is run. 
+
+The split sample approach is considered more efficient and is more easily implemented. Additionally, it provides a possibility for improved precision because it allows the outcome-covariate relationships to vary between regressions. However, this also carries the possibility of loss of precision because of small sample sizes. 
+
+To address this, the function is not recommended if the sample-per-predictor is below 20 observations. If the regression with `subgroup=` results in small samples, users should get a warning that states just that. 
+
+Lastly, the alternative is a pooled analysis where the entire sample is used and the subgroup variable is interacted with the predictors. However, setting this up can be fairly complicated and extracting the desired outcomes is definitely more complicated. Please reach out to an impact analyst if the warning about small samples is generated. 
+
+## Parameters
+
+The `ht_extract()` function as currently implemented only requires a data set. However, the input data set must have the `SubGrpVal` column. This column is created whenever the `.subgroup=` parameter is used in other extract functions. That is, users are expected to calculate the necessary statistics using `hetreg_extract()`, `clusterreg_extract()`, or `lm_extract()` with the appropriate `.subgroup=` specification and then pass the resulting extract/data frame to `ht_extract()`. 
+
+## Example with BIF data
+The sample BIF data is a synthetic data set with baseline characteristic data from participants. These data are not typically used in subgroup analysis, but the construction of functions is similar. 
+
+### Prep sample data and vectors of column names
+NOTE: Missing values in the COHORT variable are removed because COHORT is used as the subgroup and only one participant is missing COHORT. In cases where more participants are missing the subgroup variable, it may be possible to leave them in the analysis and have the missing level treated as a separate subgroup. However, this requires sufficient sample to have differences calculated within the missing subgroup. 
+
+```{r}
+# Convert COHORT to a factor for analysis
+finalBif <- bif_final %>%
+  dplyr::filter(!is.na(COHORT))
+
+# Create vector of dependent variables
+finalBif_dependents <- names(finalBif[setdiff(names(finalBif), 
+                                              c("SAMPLEID", "RA_CODE", "CohortFactor", 
+                                                "COHORT", "RA_DATE", "AGE", "DOB", "blcurhrs_73plus"))]) 
+finalBif_treatment  <- "RA_CODE"
+```
+
+## Run extracts
+As shown below, `hetreg_extract()` is run first with `.subgroup = "COHORT"`. The output from that extract is then passed to `ht_extract()`. This process is the same for output from `clusterreg_extract()` and `lm_extract()`.
+```{r, results=FALSE}
+ht_extract_r <-
+  hetreg_extract(.dataset = finalBif
+                ,.subgroup = "COHORT"
+                ,.dependents = finalBif_dependents
+                ,.treatment = "RA_CODE"
+                ,.covariates = NA_character_
+                ) %>% 
+  ht_extract()
+```
+
+```{r}
+ht_extract_r
+```
+
+Additionally, it is possible to save the intermediate extract and then pass the object explicitly to `ht_extract()`
+
+```{r, results = FALSE}
+first_extract <-
+  hetreg_extract(.dataset = finalBif
+                ,.subgroup = "COHORT"
+                ,.dependents = finalBif_dependents
+                ,.treatment = "RA_CODE"
+                ,.covariates = NA_character_
+                )
+
+second_extract <- 
+  ht_extract(.dataset = first_extract)
+```
+
+```{r}
+second_extract
+```
+

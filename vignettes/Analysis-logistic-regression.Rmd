@@ -1,0 +1,62 @@
+---
+title: "Analysis Guide: Logistic Regression"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: Logistic Regression}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+
+```{r echo=FALSE}
+library(mdrcAnalysis)
+```
+
+# Logistic Regression
+
+In general, the previous discussion on t-test and ANOVA relied on the example of continuous outcomes predicted by categorical status. They also, generally, apply to bivariate (two variable, X/Y) analysis. Often, the outcome of interest is a binary outcome such as complete/incomplete status. Examples of such an outcomes might be employed/unemployed or graduated/incomplete. For these types of outcomes, logistic regression may be a good fit. Logistic regression can also support multiple regression, allowing for the treatment status and additional covariates. 
+
+## Typical Use Cases
+At MDRC, most impact analyses, even of binary outcomes, are performed using linear regression. The Quantitative Methods Group paper on [Estimating Binary Outcomes](https://mdrc365.sharepoint.com/sites/LearningCenter/QMG/Documents/QMG%20Binary%20Outcome_revised%20120915.pdf) explains that for most outcomes, the linear regression is a sufficient approximation and provides greater interpretability than logistic regression. Logistic regression would predominantly be used for impact analysis if requested by reviewers or if small improvements in precision are sought. However, even in those cases, the QMG outlines that additional calculations are necessary in order to achieve the desired results. Notably, if data are hierarchical or clustered, logistic regression is **not** recommended. 
+
+Beyond impact analysis, three major use-cases for logistic regression are:  
+
+* Testing Treatment on Baseline Characteristics  
+* Survey Response Bias Analyses  
+* Predictive Modeling
+
+## `stats::glm()`  
+The `stats::glm()` function can perform logistic regression by specifying the `family=binomial` parameter. As with the ANOVA, the `stats::glm()` function uses the [formula notation](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/formula), `outcome ~ predictor + covariate`. 
+
+
+```{r}
+# Sample Regression - Using admissions data loaded in package
+glm(admit ~ gre + gpa + rank, data = admissions, family = "binomial")
+```
+
+### Using `broom` with `stats::glm()`
+As with ANOVA, the `broom` package can be used with `stats::glm()` output to create data frames.
+
+```{r}
+library(broom)
+tidy(glm(admit ~ gre + gpa + rank, data = admissions, family = "binomial"))
+glance(glm(admit ~ gre + gpa + rank, data = admissions, family = "binomial"))
+augment(glm(admit ~ gre + gpa + rank, data = admissions, family = "binomial"))
+```
+
+### Important Considerations of Logistic Regression
+
+As noted above, MDRC's QMG recommends using linear regression for impact analysis unless the marginal gain in precision is needed or reviewers request the use of logistic regression. The reasons for this are two-fold; first, additional calculations are necessary to achieve interpretable results, and secondly, the discussion of results can be challenging due to the results that logistic regression produce. 
+
+
+
+

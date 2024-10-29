@@ -1,0 +1,41 @@
+---
+title: "Analysis Guide: T-Tests"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: T-Tests}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# T-test
+
+The t-test is the test of equivalence between two means. A common example for MDRC work would be: Is the mean of some continuous variable the same between different treatment statuses? For example, is the average age in each level of the treatment status the same?
+
+## `base::t.test()` function
+
+The `base::t.test()` function is the easiest way to perform a t-test in R. The function accepts two vectors and will calculate the means and perform the t-test. In the below example, the average `Sepal.Length` for the first two species in the `iris` data set are tested for equivalence (each is 50 observations). Like with the `chisq()` function, the `t.test()` output can be viewed using the `broom::glance()` function for a data frame output. 
+
+### Usage Notes
+The t-test does not require equal sample sizes. One-sided t-tests can be performed using the `alternative=` parameter which accepts "two-sided", "less", or "greater". The function also has a `mu=` parameter for specifying a mean (for a one-sample t-test) or the null difference in means. 
+
+```{r}
+t.test(iris$Sepal.Length[1:50], 
+       iris$Sepal.Length[51:100])
+
+broom::tidy(t.test(iris$Sepal.Length[1:50], 
+       iris$Sepal.Length[51:100]))
+
+```
+
+### Tangent
+
+As an aside, a t-test is effectively a regression with no covariates. 

@@ -1,0 +1,65 @@
+---
+title: "Analysis Guide: ANOVA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Analysis Guide: ANOVA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+# Analysis of Variance (ANOVA)
+
+The ANalysis Of VAriance (ANOVA) is a test of difference between two *or more* means. That is, it can functionally perform the same test as the t-test, but also can be expanded to support more means. A common example for MDRC work would be: Is the mean of some continuous variable the same between different subgroups? For example, is the average age in each region of a multi-site study the same? One thing to note is that the ANOVA returns the F-statistic, an omnibus statistic, which can be interpreted as one of the means is significantly different, but it does not specify which one. This is useful as a first test as it will identify if there is a significant different with less likelihood of multiple comparisons problems. 
+
+## One-way ANOVA
+
+
+### `stats::oneway.test()`
+The `stats::oneway.test()` function is the most straightforward way to perform an ANOVA in R. The function also uses the [formula notation](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/formula), `outcome ~ predictor`, that is common in R. The `stats::oneway.test()` function also has the `var.equal=` parameter which accepts `TRUE` or `FALSE` for if variances are equal. By default, `var.equal=FALSE` is set. If `var.equal=` is set to `FALSE` then the function performs Welch's ANOVA. The below example uses the `iris` data frame which has the `Sepal.Length` (and other variables) for three species of plants. 
+
+```{r}
+oneway.test(Sepal.Length ~ Species, iris, var.equal = TRUE)
+```
+
+### `stats::aov()` with `base::summary()`
+Another method for performing an ANOVA is to use the `stats::aov()` function. With the `stats::aov()` function, it is necessary to use the `base::summary()` function to evaluate the results of the test. Exploration of all values can be done with the `base::str()` function. 
+
+```{r}
+aov(Sepal.Length ~ Species, iris)
+
+summary(aov(Sepal.Length ~ Species, iris))
+```
+
+#### `stats::aov()` with `broom` functions
+
+The same results can be had with an easier-to-use, data frame output by using the `broom` package functions.
+
+```{r, warning=FALSE}
+library(broom)
+tidy(aov(Sepal.Length ~ Species, iris))
+
+glance(aov(Sepal.Length ~ Species, iris))
+
+augment(aov(Sepal.Length ~ Species, iris))
+```
+
+#### `stats::aov()` Technical Notes
+It might be worth noting that `stats::aov()` is a wrapper to `lm()` for fitting linear models to balanced or unbalanced experimental designs. Essentially, `stats::aov()` runs an `lm()` for each strata/group-level. 
+
+
+
+
+
+
+
+
+
