@@ -1,0 +1,206 @@
+---
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+devtools::load_all()
+```
+
+# Without Factors
+
+## Without subgroup
+
+-   No chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   Yes chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   No chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+-   Yes chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+
+## With subgroup 
+
+-   No chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   Yes chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   No chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = bif_final ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+# With Factors
+
+```{r}
+.dataset <- bif_final |> 
+  dplyr::mutate(blfemale = factor(blfemale,levels = c(0,1,2)), 
+                RA_CODE  = factor(RA_CODE , levels = c("P", "C","NP"))) 
+```
+
+## Without subgroup
+
+-   No chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   Yes chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   No chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+-   Yes chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+
+## With subgroup 
+
+-   No chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   Yes chisq
+-   No missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = T,
+                 .inc_trail = F,
+                 .missing = F)
+```
+
+-   No chisq
+-   Yes missing
+
+```{r}
+crosstab_extract(.dataset = .dataset ,
+                 .col_var = "RA_CODE",
+                 .row_vars = "blfemale",
+                 .subgroup = "COHORT",
+                 .chisq = F,
+                 .inc_trail = F,
+                 .missing = T)
+```
+
+
+

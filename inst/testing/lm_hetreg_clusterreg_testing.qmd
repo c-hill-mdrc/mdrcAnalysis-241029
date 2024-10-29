@@ -1,0 +1,321 @@
+---
+title: "Testing lm, hetreg, and clusterreg"
+format: html
+---
+
+```{r}
+devtools::load_all()
+```
+# Create Data
+
+```{r}
+# Data
+## Using Bif data because it has more records
+names(bif_final)
+
+# Calculating weight for equal COHORTS
+## See Vignette Analysis-Weighting for more information
+wts <- 
+  bif_final %>% 
+  dplyr::count(COHORT) %>% 
+  dplyr::mutate(obsp = round(n/nrow(bif_final), 2),
+                desp = .5,
+                weight = round(desp/obsp, 2)) %>% 
+  dplyr::select(COHORT, weight)
+
+tdf <- 
+  bif_final %>% 
+  dplyr::mutate(CohortFactor = factor(COHORT)) %>% 
+  dplyr::filter(!is.na(COHORT) & !is.na(RA_CODE)) %>% 
+  dplyr::left_join(wts, by = "COHORT")
+
+
+# Creating "district" variable for testing with clusterreg
+# Creating "income" variable for additional covariate
+set.seed(48)
+tdf$randomn  <- runif(nrow(tdf))
+tdf$randomn2 <- runif(nrow(tdf))
+
+tdf <- 
+  tdf %>% 
+  dplyr::mutate(district = dplyr::case_when(randomn < .25 ~ 1
+                                           ,randomn < .50 ~ 2
+                                           ,randomn < .75 ~ 3
+                                           ,.default = 4),
+                income   = dplyr::case_when(randomn2 < .10 ~ 1
+                                           ,randomn2 < .40 ~ 2
+                                           ,randomn2 < .85 ~ 3
+                                           ,.default = 4)
+                )
+
+
+
+```
+
+# lm_extract()
+
+```{r, lm_basic}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income")
+           )
+extract
+```
+
+
+```{r, lm_subroup}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT")
+           )
+extract
+```
+
+```{r, lm_weights}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .wt_var     = c("weight")
+           )
+extract
+
+```
+
+
+
+```{r, lm_subgroup_weights}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight") 
+           )
+extract
+```
+
+```{r, lm_sg_w_confint}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .confintalpha = .90
+           )
+extract
+```
+
+
+```{r, lm_sg_w_ci_ht}
+extract <- 
+lm_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .confintalpha = .90
+           ) %>% 
+  ht_extract()
+extract
+```
+
+
+
+# hetreg_extract
+
+```{r, hr_basic}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income")
+           )
+extract
+```
+
+```{r, hr_subroup}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT")
+           )
+extract
+```
+
+```{r, hr_weights}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .wt_var     = c("weight")
+           )
+extract
+
+```
+
+```{r, hr_subgroup_weights}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight") 
+           )
+extract
+```
+
+```{r, hr_sg_w_confint}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .confintalpha = .90
+           )
+extract
+```
+
+```{r, hr_sg_w_ci_ht}
+extract <- 
+hetreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .confintalpha = .90
+           ) %>% 
+  ht_extract()
+extract
+```
+
+
+
+
+# clusterreg_extract()
+
+```{r, cr_basic}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .cluster_var = c("district")
+           )
+extract
+```
+
+```{r, lm_subroup}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .cluster_var = c("district")
+           )
+extract
+```
+
+```{r, lm_weights}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .wt_var     = c("weight"),
+           .cluster_var = c("district")
+           )
+extract
+
+```
+
+```{r, lm_subgroup_weights}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight") ,
+           .cluster_var = c("district")
+           )
+extract
+```
+
+```{r, lm_sg_w_confint}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .cluster_var = c("district"),
+           .confintalpha = .90
+           )
+extract
+```
+
+```{r, lm_sg_w_ci_ht}
+extract <- 
+clusterreg_extract(.dataset    = tdf,
+           .dependents = c("blmale", "blhavechild_lt18"),
+           .treatment  = c("RA_CODE"),
+           .covariates = c("AGE", "income"),
+           .asfactorcovs = c("income"),
+           .subgroup   = c("COHORT"),
+           .wt_var     = c("weight"),
+           .cluster_var = c("district"),
+           .confintalpha = .90
+           ) %>% 
+  ht_extract()
+extract
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

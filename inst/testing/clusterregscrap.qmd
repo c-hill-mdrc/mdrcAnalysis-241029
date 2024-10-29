@@ -1,0 +1,202 @@
+---
+title: "clusterreg extract testing"
+format: html
+---
+
+```{r}
+devtools::load_all()
+library(testthat)
+```
+
+
+```{r}
+  # load robust regression without cluster standard error adjustment from sas
+  sas_robustreg_withCluster <-
+    readxl::read_excel(
+      path = testthat::test_path("sas_tests", "robustreg_simdata.xlsx"),
+      sheet = "Clustered")
+
+  # applying the lower subgrp value function
+  sas_robustreg_withCluster$Dependent <- tolower(sas_robustreg_withCluster$Dependent)
+
+  sas_robustreg_withCluster <-
+    sas_robustreg_withCluster %>%
+    dplyr::select(UniqueId, SubGrpVal, Dependent, AdjMean_1, AdjMean_0, Impact_1_0,
+                  ProbT_1_0, StdErr_1_0, NObs_1, NObs_0, NObs,
+                  UnAdj_Mean_1, UnAdj_Mean_0, Unadj_Impact_1_0) %>%
+    dplyr::arrange(UniqueId,
+                   SubGrpVal)
+
+  # running robust regression without clusters
+  robustreg_withCluster <-
+    robustreg_extract(sim_data_robust_reg,
+                      .TmntVar = "treatment",
+                      .DepVars = c("employed_01",
+                                   "employed_02"),
+                      .ByX = c("eduLevel"),
+                      .ClusterVar = "sites") %>%
+    dplyr::filter(UniqueId != "sample_size")
+
+```
+
+```{r}
+robustreg_withCluster
+```
+
+
+```{r}
+#hetreg_output0 <- 
+
+regular <- 
+  clusterreg_extract(sim_data_robust_reg
+                    ,.treatment   = "treatment"
+                    ,.dependents  = c("employed_01", "employed_02")
+                    ,.subgroup    = "eduLevel"
+                    ,.cluster_var = "sites"
+                    )
+
+regular
+```
+
+
+```{r}
+#hetreg_output0 <- 
+
+sim_data_robust_reg_PC <- 
+  sim_data_robust_reg %>% 
+  dplyr::mutate(treat2=ifelse(treatment == 1, "P", "C"))
+
+CharTreat <- 
+  clusterreg_extract(sim_data_robust_reg_PC
+                    ,.treatment   = "treat2"
+                    ,.dependents  = c("employed_01", "employed_02")
+                    ,.subgroup    = "eduLevel"
+                    ,.cluster_var = "sites"
+                    )
+
+
+CharTreat
+```
+
+```{r}
+#hetreg_output0 <- 
+
+sim_data_robust_reg_RACODE <- 
+  sim_data_robust_reg %>% 
+  dplyr::mutate(RA_CODE=ifelse(treatment == 1, "P", "C"))
+
+RA_CODE <- 
+  clusterreg_extract(sim_data_robust_reg_RACODE
+                    ,.treatment   = "RA_CODE"
+                    ,.dependents  = c("employed_01", "employed_02")
+                    ,.subgroup    = "eduLevel"
+                    ,.cluster_var = "sites"
+                    )
+
+
+RA_CODE
+```
+
+```{r}
+#hetreg_output0 <- 
+
+HC1 <- 
+  clusterreg_extract(sim_data_robust_reg
+                    ,.treatment   = "treatment"
+                    ,.dependents  = c("employed_01", "employed_02")
+                    ,.subgroup    = "eduLevel"
+                    ,.cluster_var = "sites"
+                    ,.cr_method   = "match_SAS" 
+                    )
+
+HC1
+```
+
+
+```{r}
+
+CompareRR <- 
+  HC1 %>% 
+  dplyr::select(UniqueId, StdErr_1_0) %>% 
+  dplyr::left_join(robustreg_withCluster %>% dplyr::select(UniqueId, StdErr_1_0), by = "UniqueId") %>% 
+  dplyr::mutate(Samesame = StdErr_1_0.x == StdErr_1_0.y)
+  
+CompareRR
+
+```
+
+
+
+```{r}
+dplyr::count(sim_data_robust_reg, eduLevel)
+```
+
+
+```{r}
+edulevel1 <- 
+  sim_data_robust_reg %>% 
+  dplyr::filter(eduLevel == 1)
+
+lmout <- lm(employed_01 ~ treatment, data = edulevel1)
+
+# Calculate sample by treatment
+Obs <- 
+  broom::augment(lmout) %>% 
+  dplyr::count(treatment) %>% 
+  tidyr::pivot_wider(names_from = treatment, names_prefix = "NObs_", values_from = n) %>% 
+  dplyr::mutate(NObs = sum(dplyr::c_across(tidyselect::starts_with("NObs_"))))
+
+broom::augment(lmout) %>% 
+  dplyr::select(employed_01, treatment) %>% 
+  dplyr::group_by(treatment) %>% 
+  dplyr::summarise(StdDev = sd(employed_01)) %>% 
+  tidyr::pivot_wider(names_from = treatment, values_from = StdDev, names_prefix = "StdDev_")
+
+# Calculating and restructuring estimates/AdjMeans 
+lm_rg <- emmeans::ref_grid(lmout, data = edulevel1, cov.keep = "treatment")
+
+emm <- emmeans::emmeans(lm_rg, data = edulevel1, specs = "treatment")
+
+broom::tidy(emm)[["treatment"]]
+
+
+Means <-
+  broom::tidy(emm) %>%
+  dplyr::select(all_of("treatment"), "estimate") %>% 
+  tidyr::pivot_wider(names_from = "treatment", names_prefix = "AdjMean_", values_from = "estimate") %>% 
+  dplyr::bind_cols(Dependent = "employed_01")
+  
+# Calculating and restructuing heteroskedasticity robust standard errors
+lmSE <- lmtest::coeftest(lmout, vcov = sandwich::vcovHC, type = "HC3")
+
+# Grab treatment values for naming variables
+treatsuffix <- 
+  sort(broom::tidy(emm)[["treatment"]], decreasing = TRUE) %>% 
+  paste0(collapse = "_")
+
+Impact_SE <- lmSE %>%
+  broom::tidy() %>% 
+  dplyr::filter(term == "treatment") %>% 
+  dplyr::select(estimate, std.error, p.value) %>% 
+  dplyr::mutate(stars = create_stars(p.value)) %>% 
+  dplyr::rename_with(~ paste(c("Impact", "StdErr", "ProbT", "Stars"), treatsuffix, sep = "_"), c(estimate, std.error, p.value, stars)) %>% 
+  dplyr::bind_cols(Dependent = "employed_01")
+
+# Calculating the F statistic
+lmsummary <- stats::summary.lm(lmout)
+lmsumF <- lmsummary$fstatistic
+Fstat <- stats::pf(lmsumF[1], lmsumF[2], lmsumF[3], lower.tail = F)
+  
+# Getting the RSquare
+RSquare <- lmsummary$r.squared
+AdjRSquare <- lmsummary$adj.r.squared
+
+Output <- 
+  dplyr::full_join(Means, Impact_SE, by = "Dependent") %>% 
+  dplyr::bind_cols(ProbF = Fstat, RSquare = RSquare, AdjRSquare = AdjRSquare) %>%
+  dplyr::mutate(Stars_ProbF = create_stars(ProbF)) %>% 
+  dplyr::relocate(Stars_ProbF, .after = ProbF) %>% 
+  dplyr::relocate(Dependent)
+
+Output
+```
